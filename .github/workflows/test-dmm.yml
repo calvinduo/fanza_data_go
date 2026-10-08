@@ -8,32 +8,25 @@ crawl-data:
 runs-on: ubuntu-latest
 
 steps:
-  # 1. 拉取你的仓库代码 (确保 fetch_makers.js 和 fetch_videos.js 在仓库里)
   - name: Checkout repository
     uses: actions/checkout@v4
 
-  # 2. 设置 Node.js 环境 (Node 18+ 原生支持 fetch API)
   - name: Setup Node.js
     uses: actions/setup-node@v4
     with:
       node-version: '18'
 
-  # 3. 运行第一个脚本：获取所有片商 (生成 makers.json)
   - name: Fetch Makers
     run: node fetch_makers.js
 
-  # 4. 运行第二个脚本：遍历片商获取所有影片ID (读取 makers.json，生成 videos.txt)
-  # 注意：由于全量拉取耗时可能较长，这一步可能会运行 1~2 小时
   - name: Fetch Videos
     run: node fetch_videos.js
 
-  # 5. 将生成的数据文件上传，供你下载
   - name: Upload Data Artifacts
     uses: actions/upload-artifact@v4
     with:
-      name: dmm-svod-data  # 下载时的压缩包名称
+      name: dmm-svod-data
       path: |
         makers.json
         videos.txt
-      # 设置产物保留天数，默认是 90 天，这里设置为 7 天即可
       retention-days: 7
