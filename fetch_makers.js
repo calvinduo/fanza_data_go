@@ -13,8 +13,8 @@ async function fetchMakers() {
     "referer": "https://video.dmm.co.jp/"
   };
 
-  // GraphQL Query 保持原生结构
-  const query = `query SvodListPage($input: SVODContentSearchInput!, $floor: PPVFloor!, $hasFloor: Boolean!, $canonicalId: ID!, $hasGenreId: Boolean!, $hasActressId: Boolean!, $hasSeriesId: Boolean!, $hasMakerId: Boolean!, $hasLabelId: Boolean!, $hasHistrionId: Boolean!, $hasDirectorId: Boolean!, $selectedGenreIds: [ID!]!, $isSelectedGenreIds: Boolean!, $selectedActressIds: [ID!]!, $isSelectedActressIds: Boolean!, $selectedSeriesIds: [ID!]!, $isSelectedSeriesIds: Boolean!, $selectedMakerIds: [ID!]!, $isSelectedMakerIds: Boolean!, $selectedLabelIds: [ID!]!, $isSelectedLabelIds: Boolean!, $selectedHistrionIds: [ID!]!, $isSelectedHistrionIds: Boolean!, $selectedDirectorIds: [ID!]!, $isSelectedDirectorIds: Boolean!) {
+  // GraphQL Query 极简化，只保留使用的 $input 参数
+  const query = `query SvodListPage($input: SVODContentSearchInput!) {
     svodContentSearch(input: $input) {
       facet {
         makers {
@@ -26,18 +26,8 @@ async function fetchMakers() {
     }
   }`;
 
-  // 这里的核心是修改 variables 里的 input 参数
+  // Variables 也极简化，只保留 input
   const variables = {
-    "canonicalId": "",
-    "floor": "AV",
-    "hasActressId": false,
-    "hasDirectorId": false,
-    "hasFloor": false,
-    "hasGenreId": false,
-    "hasHistrionId": false,
-    "hasLabelId": false,
-    "hasMakerId": false,
-    "hasSeriesId": false,
     "input": {
       "channel": { "channels": ["DELUXE"] },
       "deliveryStatus": "ACTIVE",
@@ -46,21 +36,7 @@ async function fetchMakers() {
       "offset": 0,
       "sort": "DELIVERY_START_DATE_DESC",
       "makerFacet": { "limit": 5000 } // 【核心改动】一次性拉取最多 5000 个片商
-    },
-    "isSelectedActressIds": false,
-    "isSelectedDirectorIds": false,
-    "isSelectedGenreIds": false,
-    "isSelectedHistrionIds": false,
-    "isSelectedLabelIds": false,
-    "isSelectedMakerIds": false,
-    "isSelectedSeriesIds": false,
-    "selectedActressIds": [],
-    "selectedDirectorIds": [],
-    "selectedGenreIds": [],
-    "selectedHistrionIds": [],
-    "selectedLabelIds": [],
-    "selectedMakerIds": [],
-    "selectedSeriesIds": []
+    }
   };
 
   console.log("🚀 开始请求 DMM SVOD 片商数据...");
