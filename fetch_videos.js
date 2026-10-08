@@ -19,22 +19,6 @@ const OPTIMIZED_QUERY = `query SvodListPage($input: SVODContentSearchInput!) {
   svodContentSearch(input: $input) {
     items {
       contentId
-      title
-      channel
-      floor
-      deliveryStartAt
-      deliveryEndAt
-      packageImage {
-        mediumUrl
-        largeUrl
-      }
-      actresses {
-        id
-        name
-      }
-      review {
-        average
-      }
     }
     pageInfo {
       totalCount
@@ -108,7 +92,7 @@ async function fetchAllVideos() {
     return;
   }
 
-  const allVideos = [];
+  const allVideoIds = [];
   let totalProcessedMakers = 0;
 
   // 2. 遍历片商
@@ -138,8 +122,9 @@ async function fetchAllVideos() {
         break;
       }
 
-      // 将本页影片推入总数组
-      allVideos.push(...items);
+      // 提取本页影片的 contentId 并推入总数组
+      const ids = items.map(item => item.contentId);
+      allVideoIds.push(...ids);
       fetchedCountForMaker += items.length;
 
       console.log(`  └ 📥 成功拉取 ${items.length} 部影片，进度: ${fetchedCountForMaker}/${totalCountForMaker} (Offset: ${offset})`);
@@ -161,13 +146,12 @@ async function fetchAllVideos() {
     await sleep(DELAY_BETWEEN_REQUESTS);
   }
 
-  console.log(`\n🎉 所有片商遍历结束！共计拉取到全量影片数量: ${allVideos.length}`);
+  console.log(`\n🎉 所有片商遍历结束！共计拉取到全量影片 ID 数量: ${allVideoIds.length}`);
 
-  if (allVideos.length > 0) {
-    console.log("💾 正在将数据保存至 videos.json，由于数据量较大，可能需要几秒钟...");
-    // 43万部影片转JSON可能需要一定的内存，Node.js 默认内存上限支持，但写入时需稍等
-    await fs.writeFile('videos.json', JSON.stringify(allVideos, null, 2), 'utf-8');
-    console.log("✅ 影片数据已成功保存至 videos.json！");
+  if (allVideoIds.length > 0) {
+    console.log("💾 正在将数据保存至 videos.txt，每行一个 contentId...");
+    await fs.writeFile('videos.txt', allVideoIds.join('\n'), 'utf-8');
+    console.log("✅ 影片数据已成功保存至 videos.txt！");
   }
 }
 
