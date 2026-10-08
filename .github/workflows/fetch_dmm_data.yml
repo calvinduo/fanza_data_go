@@ -1,0 +1,35 @@
+name: Fetch DMM Data
+
+on:
+  schedule:
+    # 每天 UTC 时间 0:00（北京/台湾时间早上 8:00）自动执行一次
+    - cron: '0 0 * * *'
+  # 允许在 GitHub Actions 页面手动点击运行
+  workflow_dispatch: 
+
+jobs:
+  run-scripts:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # Node.js 18 以上原生支持 fetch API
+
+      - name: Run fetch_makers.js
+        run: node fetch_makers.js
+
+      - name: Run fetch_videos.js
+        run: node fetch_videos.js
+
+      - name: Commit and push generated files
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add makers.json videos.txt
+          # 检查是否有文件变动，如果有则提交并推送至仓库
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update makers and videos data" && git push)
