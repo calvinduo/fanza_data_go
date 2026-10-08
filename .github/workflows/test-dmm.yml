@@ -1,7 +1,5 @@
 name: DMM SVOD Crawler
 
-允许手动在 Actions 页面点击 "Run workflow" 触发
-
 on:
 workflow_dispatch:
 
