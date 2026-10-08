@@ -1,9 +1,9 @@
 const fs = require('fs').promises;
 
-async function fetchMakers() {
+async function fetchAllMakers() {
   const url = "https://api.video.dmm.co.jp/graphql";
   
-  // 保持和浏览器请求完全一致的 Headers
+  // 保持基础 Headers
   const headers = {
     "accept": "application/graphql-response+json, application/graphql+json, application/json, text/event-stream, multipart/mixed",
     "accept-language": "zh-CN,zh;q=0.9,ja;q=0.8",
@@ -13,76 +13,89 @@ async function fetchMakers() {
     "referer": "https://video.dmm.co.jp/"
   };
 
-  // GraphQL Query 极简化，只保留使用的 $input 参数
-  const query = `query SvodListPage($input: SVODContentSearchInput!) {
-    svodContentSearch(input: $input) {
-      facet {
-        makers {
-          id
-          name
-          count
-        }
+  // 我们删除了 syllabary 参数，让 API 返回所有的片商，暴露 limit 和 offset 以便分页
+  const query = `query SvodMakerPage($channels: [SVODChannelType!]!, $limit: Int!, $offset: Int!) {
+    svodMakers(
+      channels: $channels
+      sort: NAME_ASC
+      limit: $limit
+      offset: $offset
+    ) {
+      items {
+        id
+        name
       }
     }
   }`;
 
-  // Variables 也极简化，只保留 input
-  const variables = {
-    "input": {
-      "channel": { "channels": ["DELUXE"] },
-      "deliveryStatus": "ACTIVE",
-      "excludeForeignUnavailable": false,
-      "limit": 1, // 我们不需要获取具体的影片(items)，设为1节省带宽
-      "offset": 0,
-      "sort": "DELIVERY_START_DATE_DESC",
-      "makerFacet": { "limit": 5000 } // 【核心改动】一次性拉取最多 5000 个片商
+  let allMakers = [];
+  let offset = 0;
+  const limit = 500; // 官方支持的最大单页片商数量
+
+  console.log("🚀 开始分页获取全量片商列表...");
+
+  // 使用 while(true) 不断翻页，直到拿不到数据为止
+  while (true) {
+    const variables = {
+      "channels": ["DELUXE"],
+      "limit": limit,
+      "offset": offset
+    };
+
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: headers,
+        body: JSON.stringify({
+          operationName: "SvodMakerPage", // 对应网页版的片商列表页面
+          query: query,
+          variables: variables
+        })
+      });
+
+      if (!response.ok) {
+        console.error(`❌ HTTP Error: ${response.status} ${response.statusText}`);
+        break;
+      }
+
+      const data = await response.json();
+      
+      if (data.errors) {
+        console.error("❌ GraphQL Error:", JSON.stringify(data.errors, null, 2));
+        break;
+      }
+
+      const items = data?.data?.svodMakers?.items || [];
+      
+      // 如果本页没有数据了，说明已经翻到了最后一页，退出循环
+      if (items.length === 0) {
+        console.log("✅ 所有片商获取完毕，没有更多数据了！");
+        break;
+      }
+
+      allMakers = allMakers.concat(items);
+      console.log(`📥 成功获取 offset: ${offset} ~ ${offset + items.length}，当前已收集: ${allMakers.length} 个片商`);
+
+      // 准备请求下一页
+      offset += limit;
+
+      // 礼貌性延迟 1.5 秒，防止短时间内高频请求触发风控封禁
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+    } catch (error) {
+      console.error("❌ 请求过程中发生异常:", error.message);
+      break;
     }
-  };
+  }
 
-  console.log("🚀 开始请求 DMM SVOD 片商数据...");
-
-  try {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: headers,
-      body: JSON.stringify({
-        operationName: "SvodListPage",
-        query: query,
-        variables: variables
-      })
-    });
-
-    if (!response.ok) {
-      console.error(`❌ HTTP Error: ${response.status} ${response.statusText}`);
-      const errText = await response.text();
-      console.error("❌ 原始返回信息:", errText);
-      return;
-    }
-
-    const data = await response.json();
-    
-    // 提取片商列表
-    const makers = data?.data?.svodContentSearch?.facet?.makers;
-
-    if (!makers || makers.length === 0) {
-      console.warn("⚠️ 没有获取到片商数据，可能被拦截或者返回格式变更。");
-      console.log("返回体:", JSON.stringify(data, null, 2));
-      return;
-    }
-
-    console.log(`✅ 成功获取到 ${makers.length} 个片商的信息！`);
-    
-    // 输出前几个验证一下
-    console.log("🔍 前 5 个片商示例:");
-    console.table(makers.slice(0, 5));
-
-    // 保存到本地文件，方便下一步读取使用
-    await fs.writeFile("makers.json", JSON.stringify(makers, null, 2), "utf-8");
+  console.log(`🎉 抓取结束！最终成功获取到 ${allMakers.length} 个片商的信息！`);
+  
+  if (allMakers.length > 0) {
+    // 保存到本地文件
+    await fs.writeFile("makers.json", JSON.stringify(allMakers, null, 2), "utf-8");
     console.log("💾 数据已成功保存到 makers.json");
-
-  } catch (error) {
-    console.error("❌ 请求过程中发生异常:", error.message);
+    console.log("🔍 前 3 个片商示例:", allMakers.slice(0, 3));
   }
 }
 
-fetchMakers();
+fetchAllMakers();
